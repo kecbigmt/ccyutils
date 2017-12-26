@@ -2,12 +2,12 @@
 いろんな仮想通貨取引所のPublic APIやPrivate APIを叩きます。
 現在対応しているのは、
 * bitFlyer
-** Ticker
-** Balance（アカウント残高取得）
+ * Ticker
+ * Balance（アカウント残高取得）
 * bitbank.cc
-** Ticker
+ * Ticker
 * Binance
-** Ticker
+ * Ticker
 
 ※随時対応APIを増やしたい
 # Getting Started
