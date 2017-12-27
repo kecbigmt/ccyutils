@@ -5,18 +5,36 @@ import (
   "log"
   "io/ioutil"
   "encoding/json"
+
+  "github.com/kecbigmt/ccyutils"
 )
 
-type BalanceData struct {
+type BitFlyerBalance struct {
     CurrencyCode string `json:"currency_code"`
     Amount float32 `json:"amount"`
     Available float32 `json:"available"`
 }
+type BitFlyerBalanceArray []BitFlyerBalance
+func (bfbarr BitFlyerBalanceArray) Norm() (barr ccyutils.BalanceArray) {
+  for _, bfb := range bfbarr {
+    b := ccyutils.Balance{
+      ServiceName: "bitflyer",
+      CurrencyCode: bfb.CurrencyCode,
+      Amount: bfb.Amount,
+      Available: bfb.Available,
+    }
+    barr = append(barr, b)
+  }
+  return
+}
 
-func Balance() map[string]map[string]float32{
-  resp := privateApi("GET", "/v1/me/getbalance", map[string]string{})
+func Balance() (barr ccyutils.BalanceArray, err error) {
+  resp, err := AuthorizedRequest("GET", "/v1/me/getbalance", map[string]string{})
   defer resp.Body.Close()
-  // JSONファイル読み込み
+  if err != nil {
+      return
+  }
+
   bytes, err := ioutil.ReadAll(resp.Body)
   if err != nil {
       log.Fatal(err)
@@ -26,36 +44,10 @@ func Balance() map[string]map[string]float32{
     log.Fatal(err)
   }
 
-  // JSONデコード
-  var balances []BalanceData
+  var balances BitFlyerBalanceArray
   if err := json.Unmarshal(bytes, &balances); err != nil {
       log.Fatal(err)
   }
-  // デコードしたデータを表示
-  var (
-    jpy BalanceData
-    btc BalanceData
-    eth BalanceData
-  )
-  for _, j := range balances{
-    switch j.CurrencyCode {
-    case "JPY": jpy = j
-    case "BTC": btc = j
-    case "ETH": eth = j
-    }
-  }
-  return map[string]map[string]float32{
-    "JPY":map[string]float32{
-      "amount": jpy.Amount,
-      "available": jpy.Available,
-    },
-    "BTC":map[string]float32{
-      "amount": btc.Amount,
-      "available": btc.Available,
-    },
-    "ETH":map[string]float32{
-      "amount": eth.Amount,
-      "available": eth.Available,
-    },
-  }
+  barr = balances.Norm()
+  return
 }

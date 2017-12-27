@@ -25,9 +25,9 @@ type BitBankData struct {
   Timestamp int64 `json:"timestamp"`
 }
 
-func (bbt BitBankTick) Norm(currency_pair string) ccyutils.TickData{
-  var td ccyutils.TickData
-  td.ExchangeName = "bitBank"
+func (bbt BitBankTick) Norm(currency_pair string) ccyutils.Tick{
+  var td ccyutils.Tick
+  td.ServiceName = "bitbank"
   td.CurrencyPair = currency_pair
   td.UnixTimestamp = bbt.Data.Timestamp / int64(1000)
   b, _ := strconv.ParseFloat(bbt.Data.Buy, 32)
@@ -42,16 +42,20 @@ func (bbt BitBankTick) Norm(currency_pair string) ccyutils.TickData{
   td.LowPrice = float32(lw)
   v, _ := strconv.ParseFloat(bbt.Data.Vol, 32)
   td.Volume = float32(v)
+  td.Spread = (td.BestAsk - td.BestBid) / td.BestAsk
   return td
 }
 
-func Ticker(currency_pair string) ccyutils.TickData{
+func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
   t_currency_pair := strings.ToLower(currency_pair) // XXX_YYY -> xxx_yyy
   url := "https://public.bitbank.cc/"+t_currency_pair+"/ticker"
   req, _ := http.NewRequest("GET", url, nil)
   client := new(http.Client)
-  resp, _ := client.Do(req)
+  resp, err := client.Do(req)
   defer resp.Body.Close()
+  if err != nil{
+    return
+  }
 
   bytes, err := ioutil.ReadAll(resp.Body)
   if err != nil {
@@ -61,5 +65,6 @@ func Ticker(currency_pair string) ccyutils.TickData{
   if err := json.Unmarshal(bytes, &bbt); err != nil {
       log.Fatal(err)
   }
-  return bbt.Norm(currency_pair)
+  tick = bbt.Norm(currency_pair)
+  return
 }

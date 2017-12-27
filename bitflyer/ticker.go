@@ -27,9 +27,9 @@ type BitFlyerTick struct {
 }
 
 // normalize BitFlyerTick struct
-func (bft BitFlyerTick) Norm(currency_pair string) ccyutils.TickData{
-  var td ccyutils.TickData
-  td.ExchangeName = "bitFlyer"
+func (bft BitFlyerTick) Norm(currency_pair string) ccyutils.Tick{
+  var td ccyutils.Tick
+  td.ServiceName = "bitflyer"
   td.CurrencyPair = currency_pair
   ut, _ := time.Parse("2006-01-02T15:04:05", bft.Timestamp)
   td.UnixTimestamp = ut.Unix()
@@ -42,17 +42,21 @@ func (bft BitFlyerTick) Norm(currency_pair string) ccyutils.TickData{
   td.TotalAskDepth = bft.TotalAskDepth
   td.LastPrice = bft.Ltp
   td.Volume = bft.Volume
+  td.Spread = (td.BestAsk - td.BestBid) / td.BestAsk
   return td
 }
 
 // get ticker
-func Ticker(currency_pair string) ccyutils.TickData{
+func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
     url := "https://api.bitflyer.jp/v1/ticker?product_code="+currency_pair
     req, _ := http.NewRequest("GET", url, nil)
     client := new(http.Client)
-    resp, _ := client.Do(req)
+    resp, err := client.Do(req)
     defer resp.Body.Close()
-
+    if err != nil{
+      return
+    }
+    
     bytes, err := ioutil.ReadAll(resp.Body)
     if err != nil {
         log.Fatal(err)
@@ -61,5 +65,6 @@ func Ticker(currency_pair string) ccyutils.TickData{
     if err := json.Unmarshal(bytes, &bft); err != nil {
         log.Fatal(err)
     }
-    return bft.Norm(currency_pair)
+    tick = bft.Norm(currency_pair)
+    return
 }

@@ -16,7 +16,7 @@ import (
   "encoding/json"
 )
 
-func privateApi(method string, path string, params map[string]string) *http.Response{
+func AuthorizedRequest(method string, path string, params map[string]string) (resp *http.Response, err error){
   // init
   base_url := "https://api.bitflyer.jp"
   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
@@ -61,9 +61,6 @@ func privateApi(method string, path string, params map[string]string) *http.Resp
 
   // do request
   client := new(http.Client)
-  resp, err := client.Do(req)
-  if err != nil {
-    log.Fatal(err)
-  }
-  return resp
+  resp, err = client.Do(req)
+  return
 }

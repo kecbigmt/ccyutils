@@ -37,9 +37,9 @@ type BinanceTick struct {
 }
 
 // normalize BinanceTick struct
-func (bt BinanceTick) Norm(currency_pair string) ccyutils.TickData{
-  var td ccyutils.TickData
-  td.ExchangeName = "Binance"
+func (bt BinanceTick) Norm(currency_pair string) ccyutils.Tick{
+  var td ccyutils.Tick
+  td.ServiceName = "binance"
   td.CurrencyPair = currency_pair
   td.UnixTimestamp = bt.CloseTime / int64(1000)
   td.TickId = bt.LastId
@@ -61,17 +61,21 @@ func (bt BinanceTick) Norm(currency_pair string) ccyutils.TickData{
   td.PriceChangePercent24h = float32(pcp)
   vl, _ := strconv.ParseFloat(bt.Volume, 32)
   td.Volume = float32(vl)
+  td.Spread = (td.BestAsk - td.BestBid) / td.BestAsk
   return td
 }
 
 // get ticker
-func Ticker(currency_pair string) ccyutils.TickData{
+func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
   t_currency_pair := strings.ToUpper(strings.Replace(currency_pair, "_", "", -1)) // XXX_YYY -> xxxyyy
   url := "https://api.binance.com/api/v1/ticker/24hr?symbol="+t_currency_pair
   req, _ := http.NewRequest("GET", url, nil)
   client := new(http.Client)
-  resp, _ := client.Do(req)
+  resp, err := client.Do(req)
   defer resp.Body.Close()
+  if err != nil{
+    return
+  }
 
   bytes, err := ioutil.ReadAll(resp.Body)
   if err != nil {
@@ -81,5 +85,6 @@ func Ticker(currency_pair string) ccyutils.TickData{
   if err := json.Unmarshal(bytes, &bt); err != nil {
       log.Fatal(err)
   }
-  return bt.Norm(currency_pair)
+  tick = bt.Norm(currency_pair)
+  return
 }
