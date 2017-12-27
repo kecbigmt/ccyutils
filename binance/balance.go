@@ -30,13 +30,13 @@ type BinanceBalance struct {
 type BinanceBalanceArray []BinanceBalance
 func (bbarr BinanceBalanceArray) Norm() (barr ccyutils.BalanceArray) {
   for _, bb := range bbarr {
-    free, _ := strconv.ParseFloat(bb.Free, 32)
-    locked, _ := strconv.ParseFloat(bb.Locked, 32)
+    free, _ := strconv.ParseFloat(bb.Free, 64)
+    locked, _ := strconv.ParseFloat(bb.Locked, 64)
     b := ccyutils.Balance{
       ServiceName: "binance",
       CurrencyCode: bb.Asset,
-      Amount: float32(free+locked),
-      Available: float32(free),
+      Amount: free+locked,
+      Available: free,
     }
     barr = append(barr, b)
   }

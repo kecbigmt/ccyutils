@@ -11,8 +11,8 @@ import (
 
 type BitFlyerBalance struct {
     CurrencyCode string `json:"currency_code"`
-    Amount float32 `json:"amount"`
-    Available float32 `json:"available"`
+    Amount float64 `json:"amount"`
+    Available float64 `json:"available"`
 }
 type BitFlyerBalanceArray []BitFlyerBalance
 func (bfbarr BitFlyerBalanceArray) Norm() (barr ccyutils.BalanceArray) {

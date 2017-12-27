@@ -8,28 +8,28 @@ type Tick struct {
   CurrencyPair string
   UnixTimestamp int64
   TickId int
-  BestBid float32
-  BestAsk float32
-  BestBidSize float32
-  BestAskSize float32
-  TotalBidDepth float32
-  TotalAskDepth float32
-  LastPrice float32
-  HighPrice float32
-  LowPrice float32
-  PriceChangePercent1h float32
-  PriceChangePercent24h float32
-  PriceChangePercent7d float32
-  Volume float32
-  Spread float32
+  BestBid float64
+  BestAsk float64
+  BestBidSize float64
+  BestAskSize float64
+  TotalBidDepth float64
+  TotalAskDepth float64
+  LastPrice float64
+  HighPrice float64
+  LowPrice float64
+  PriceChangePercent1h float64
+  PriceChangePercent24h float64
+  PriceChangePercent7d float64
+  Volume float64
+  Spread float64
 }
 
 // Balance
 type Balance struct {
   ServiceName string
   CurrencyCode string
-  Amount float32
-  Available float32
+  Amount float64
+  Available float64
 }
 type BalanceArray []Balance
 

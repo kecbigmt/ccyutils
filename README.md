@@ -1,15 +1,14 @@
 # About
-いろんな仮想通貨取引所のPublic APIやPrivate APIを叩きます。
+いろんな仮想通貨取引所のAPIを叩きます。
 現在対応しているのは、
 * bitFlyer
-   * Ticker
-   * Balance（アカウント残高取得）
 * bitbank.cc
-  * Ticker
 * Binance
-  * Ticker
 
-※随時対応APIを増やしたい
+# CLI
+ccyutilsを利用したCLIツールも開発中
+https://github.com/kecbigmt/ccycli
+
 # Getting Started
 ```
 go get github.com/kecbigmt/ccyutils

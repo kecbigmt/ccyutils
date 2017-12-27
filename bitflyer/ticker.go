@@ -15,15 +15,15 @@ type BitFlyerTick struct {
   ProductCode string `json:"product_code"`
   Timestamp string `json:"timestamp"`
   TickId int `json:"tick_id"`
-  BestBid float32`json:"best_bid"`
-  BestAsk float32 `json:"best_ask"`
-  BestBidSize float32 `json:"best_bid_size"`
-  BestAskSize float32 `json:"best_ask_size"`
-  TotalBidDepth float32 `json:"total_bid_depth"`
-  TotalAskDepth float32 `json:"total_ask_depth"`
-  Ltp float32 `json:"ltp"`
-  Volume float32 `json:"volume"`
-  VolumeByProduct float32 `json:"volume_by_product"`
+  BestBid float64`json:"best_bid"`
+  BestAsk float64 `json:"best_ask"`
+  BestBidSize float64 `json:"best_bid_size"`
+  BestAskSize float64 `json:"best_ask_size"`
+  TotalBidDepth float64 `json:"total_bid_depth"`
+  TotalAskDepth float64 `json:"total_ask_depth"`
+  Ltp float64 `json:"ltp"`
+  Volume float64 `json:"volume"`
+  VolumeByProduct float64 `json:"volume_by_product"`
 }
 
 // normalize BitFlyerTick struct
@@ -56,7 +56,7 @@ func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
     if err != nil{
       return
     }
-    
+
     bytes, err := ioutil.ReadAll(resp.Body)
     if err != nil {
         log.Fatal(err)

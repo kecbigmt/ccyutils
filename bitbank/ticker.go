@@ -1,14 +1,15 @@
 package bitbank
 
 import (
-    "log"
-    "strings"
-    "strconv"
-    "net/http"
-    "io/ioutil"
-    "encoding/json"
+  "log"
+  "errors"
+  "strings"
+  "strconv"
+  "net/http"
+  "io/ioutil"
+  "encoding/json"
 
-    "github.com/kecbigmt/ccyutils"
+  "github.com/kecbigmt/ccyutils"
 )
 
 type BitBankTick struct {
@@ -30,18 +31,18 @@ func (bbt BitBankTick) Norm(currency_pair string) ccyutils.Tick{
   td.ServiceName = "bitbank"
   td.CurrencyPair = currency_pair
   td.UnixTimestamp = bbt.Data.Timestamp / int64(1000)
-  b, _ := strconv.ParseFloat(bbt.Data.Buy, 32)
-  td.BestBid = float32(b)
-  s, _ := strconv.ParseFloat(bbt.Data.Sell, 32)
-  td.BestAsk = float32(s)
-  lt, _ := strconv.ParseFloat(bbt.Data.Last, 32)
-  td.LastPrice = float32(lt)
-  h, _ := strconv.ParseFloat(bbt.Data.High, 32)
-  td.HighPrice = float32(h)
-  lw, _ := strconv.ParseFloat(bbt.Data.Low, 32)
-  td.LowPrice = float32(lw)
-  v, _ := strconv.ParseFloat(bbt.Data.Vol, 32)
-  td.Volume = float32(v)
+  b, _ := strconv.ParseFloat(bbt.Data.Buy, 64)
+  td.BestBid = b
+  s, _ := strconv.ParseFloat(bbt.Data.Sell, 64)
+  td.BestAsk = s
+  lt, _ := strconv.ParseFloat(bbt.Data.Last, 64)
+  td.LastPrice = lt
+  h, _ := strconv.ParseFloat(bbt.Data.High, 64)
+  td.HighPrice = h
+  lw, _ := strconv.ParseFloat(bbt.Data.Low, 64)
+  td.LowPrice = lw
+  v, _ := strconv.ParseFloat(bbt.Data.Vol, 64)
+  td.Volume = v
   td.Spread = (td.BestAsk - td.BestBid) / td.BestAsk
   return td
 }
@@ -64,6 +65,10 @@ func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
   var bbt BitBankTick
   if err := json.Unmarshal(bytes, &bbt); err != nil {
       log.Fatal(err)
+  }
+  if bbt.Success == 0{
+    err = errors.New("[Error]API Error")
+    return
   }
   tick = bbt.Norm(currency_pair)
   return
