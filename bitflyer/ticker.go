@@ -1,10 +1,11 @@
 package bitflyer
 
 import (
+    "fmt"
+    "time"
+    "strings"
     "net/http"
     "io/ioutil"
-    "log"
-    "time"
     "encoding/json"
 
     "github.com/kecbigmt/ccyutils"
@@ -48,22 +49,43 @@ func (bft BitFlyerTick) Norm(currency_pair string) ccyutils.Tick{
 
 // get ticker
 func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
-    url := "https://api.bitflyer.jp/v1/ticker?product_code="+currency_pair
+    t_currency_pair := strings.ToUpper(currency_pair) // XXX_YYY
+    url := "https://api.bitflyer.jp/v1/ticker?product_code="+t_currency_pair
     req, _ := http.NewRequest("GET", url, nil)
     client := new(http.Client)
     resp, err := client.Do(req)
-    defer resp.Body.Close()
     if err != nil{
+      err = fmt.Errorf(`{
+        "error_code":"100",
+        "component":"ticker",
+        "service":"bitflyer",
+        "message":"[Error]Failed to request",
+        "detail":%v
+      }`, err)
       return
     }
-
-    bytes, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        log.Fatal(err)
+    defer resp.Body.Close()
+    bytes, _ := ioutil.ReadAll(resp.Body)
+    if resp.StatusCode != 200{
+      err = fmt.Errorf(`{
+        "error_code":"101",
+        "component":"ticker",
+        "service":"bitflyer",
+        "message":"[Error]HTTP Error(%v)",
+        "detail":%v
+      }`, resp.StatusCode, string(bytes))
+      return
     }
     var bft BitFlyerTick
-    if err := json.Unmarshal(bytes, &bft); err != nil {
-        log.Fatal(err)
+    if err = json.Unmarshal(bytes, &bft); err != nil {
+      err = fmt.Errorf(`{
+        "error_code":"102",
+        "component":"ticker",
+        "service":"bitflyer",
+        "message":"[Error]Failed to decode JSON",
+        "detail":%v
+      }`, err)
+      return
     }
     tick = bft.Norm(currency_pair)
     return

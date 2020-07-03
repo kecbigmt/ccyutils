@@ -1,7 +1,7 @@
 package binance
 
 import (
-    "log"
+    "fmt"
     "strings"
     "strconv"
     "net/http"
@@ -67,23 +67,46 @@ func (bt BinanceTick) Norm(currency_pair string) ccyutils.Tick{
 
 // get ticker
 func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
-  t_currency_pair := strings.ToUpper(strings.Replace(currency_pair, "_", "", -1)) // XXX_YYY -> xxxyyy
+  t_currency_pair := strings.ToUpper(strings.Replace(currency_pair, "_", "", -1)) // XXX_YYY -> XXXYYY
   url := "https://api.binance.com/api/v1/ticker/24hr?symbol="+t_currency_pair
   req, _ := http.NewRequest("GET", url, nil)
   client := new(http.Client)
   resp, err := client.Do(req)
-  defer resp.Body.Close()
   if err != nil{
+    err = fmt.Errorf(`{
+      "error_code":"100",
+      "component":"ticker",
+      "service":"binance",
+      "message":"[Error]Failed to request",
+      "detail":%v
+    }`, err)
     return
   }
+  defer resp.Body.Close()
 
-  bytes, err := ioutil.ReadAll(resp.Body)
-  if err != nil {
-      log.Fatal(err)
+  bytes, _ := ioutil.ReadAll(resp.Body)
+  if resp.StatusCode != 200{
+    err = fmt.Errorf(`{
+      "error_code":"101",
+      "component":"ticker",
+      "service":"binance",
+      "message":"[Error]HTTP Error(%v)",
+      "detail":%v
+    }`, resp.StatusCode, string(bytes))
+    return
   }
   var bt BinanceTick
-  if err := json.Unmarshal(bytes, &bt); err != nil {
-      log.Fatal(err)
+  if err = json.Unmarshal(bytes, &bt); err != nil {
+    if resp.StatusCode != 200{
+      err = fmt.Errorf(`{
+        "error_code":"102",
+        "component":"ticker",
+        "service":"binance",
+        "message":"[Error]Failed to decode JSON",
+        "detail":%v
+      }`, err)
+      return
+    }
   }
   tick = bt.Norm(currency_pair)
   return

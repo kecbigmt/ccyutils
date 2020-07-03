@@ -36,84 +36,190 @@ func (p PersonalTickArray) SumKey() (sum float64) {
   }
   return
 }
+func (ptarr PersonalTickArray) Search(currency_code string, service_i interface{}) (output PersonalTick, ok bool){
+  switch service := service_i.(type){
+  case string:
+    for _, pt := range ptarr {
+      if pt.ServiceName == service && pt.CurrencyCode == currency_code{
+        output = pt
+        ok = true
+        return
+      }
+    }
+    ok = false
+    return
+  default:
+    for _, pt := range ptarr {
+      if pt.CurrencyCode == currency_code{
+        output = pt
+        ok = true
+        return
+      }
+    }
+    ok = false
+    return
+  }
+}
+//
+type AvailablePairsStruct struct{
+  BitFlyer ccyutils.AvailablePairs
+  BitBank ccyutils.AvailablePairs
+  Binance ccyutils.AvailablePairs
+}
+func GetAllAvailablePairs() AvailablePairsStruct{
+  return AvailablePairsStruct{
+    BitFlyer: bf.AvailablePair(),
+    BitBank: bb.AvailablePair(),
+    Binance: bn.AvailablePair(),
+  }
+}
+
+
 
 // 手持ちの通貨の残高とTicker情報を取得
-func PersonalTicker(key_currency_code string) (ptarr PersonalTickArray){
-  // まずBTCJPYを取得
-  key_tick, err := bf.Ticker("BTC_"+key_currency_code)
+func PersonalTicker(key_currency_code string, pairs AvailablePairsStruct) (arr PersonalTickArray){
+  // 通貨ペアを取得
+  bitflyer_pairs := pairs.BitFlyer
+  bitbank_pairs := pairs.BitBank
+  binance_pairs := pairs.Binance
+  // まずBTCJPYを取得（bitFlyerの相場を基準にする）
+  /*key_tick, err := bf.Ticker("BTC_"+key_currency_code)
   if err != nil{
     log.Fatal(err)
   }
-  key_ltp := key_tick.LastPrice
-  bf_balances, _ := bf.Balance()
-  bf_balances = bf_balances.DropZero()
-  bn_balances, _ := bn.Balance()
-  bn_balances = bn_balances.DropZero()
-  bb_balances, _ := bb.Balance()
-  bb_balances = bb_balances.DropZero()
-  balances := append(bf_balances, bn_balances...)
-  balances = append(balances, bb_balances...)
-  for _, b := range balances{
-    ptarr = append(ptarr, BalanceToTicker(b, key_ltp, key_currency_code))
+  key_ltp := key_tick.LastPrice*/
+  arr = append(arr, BalanceToTickerMulti(bf.Balance, key_currency_code, &bitflyer_pairs)...)
+  arr = append(arr, BalanceToTickerMulti(bb.Balance, key_currency_code, &bitbank_pairs)...)
+  arr = append(arr, BalanceToTickerMulti(bn.Balance, key_currency_code, &binance_pairs)...)
+  // 0.0になっている値があれば計算用のLTPを決定し、なければ処理終了
+  var ltp_btckey float64
+  for _, a := range arr {
+    if a.LastPrice_BTC == 0.0 || a.LastPrice_key == 0.0{
+      // BTC/JPYを取得済みデータのなかから探し、なければbitFlyerのAPIを叩く
+      if tick_btc, ok := arr.Search("BTC", nil); ok{
+        ltp_btckey = tick_btc.LastPrice_key
+      } else {
+        key_tick, err := bf.Ticker("BTC_"+key_currency_code)
+        if err != nil{
+          log.Fatal(err)
+        }
+        ltp_btckey = key_tick.LastPrice
+      }
+      break
+    }
+  }
+  if ltp_btckey == 0.0 {
+    return
+  }
+
+  // 計算用のLTPを用いて0.0を埋める
+  for i, a := range arr {
+    switch {
+    case a.CurrencyCode == "BTC" && a.LastPrice_key == 0.0:
+      (arr[i]).LastPrice_BTC = 1.0
+      (arr[i]).LastPrice_key = ltp_btckey
+      (arr[i]).Amount_BTC = (arr[i]).Amount
+      (arr[i]).Amount_key = (arr[i]).Amount * (arr[i]).LastPrice_key
+    case a.LastPrice_BTC == 0.0:
+      (arr[i]).LastPrice_BTC = (arr[i]).LastPrice_key * (1.0/ltp_btckey)
+      (arr[i]).Amount_BTC = (arr[i]).Amount * (arr[i]).LastPrice_BTC
+    case a.LastPrice_key == 0.0:
+      (arr[i]).LastPrice_key = (arr[i]).LastPrice_BTC * ltp_btckey
+      (arr[i]).Amount_key = (arr[i]).Amount * (arr[i]).LastPrice_key
+    default:
+      break
+    }
   }
   return
 }
 
-func BalanceToTicker(b ccyutils.Balance, key_ltp float64, key_currency_code string) (pt PersonalTick){
-  currency_pair := b.CurrencyCode+"_BTC"
-  // キー通貨もしくはBTCであればAPIを叩く必要がない
-  if b.CurrencyCode == key_currency_code {
-    pt.ServiceName = b.ServiceName
-    pt.CurrencyCode = b.CurrencyCode
-    pt.Amount = b.Amount
-    pt.LastPrice_BTC = 1.0/key_ltp
-    pt.Amount_BTC = b.Amount*pt.LastPrice_BTC
-    pt.LastPrice_key = 1.0
-    pt.Amount_key = b.Amount
-    pt.KeyCurrencyCode = key_currency_code
-    return
+func BalanceToTickerMulti (f func()(ccyutils.BalanceArray, error), key_currency_code string, available_pairs *ccyutils.AvailablePairs) (arr PersonalTickArray){
+  balances, _ := f()
+  balances = balances.DropZero()
+  for _, b := range balances{
+    arr = append(arr, BalanceToTicker(&b, key_currency_code, available_pairs))
   }
-  if b.CurrencyCode == "BTC" {
-    pt.ServiceName = b.ServiceName
-    pt.CurrencyCode = b.CurrencyCode
-    pt.Amount = b.Amount
-    pt.LastPrice_BTC = 1.0/key_ltp
-    pt.Amount_BTC = b.Amount
-    pt.LastPrice_key = key_ltp
-    pt.Amount_key = b.Amount * key_ltp
-    pt.KeyCurrencyCode = key_currency_code
-    return
+  // 0.0になっているLTPを同じ取引所のBTC/JPYで計算する
+  for i, a := range arr {
+    if a.LastPrice_BTC == 0.0 && a.LastPrice_key == 0.0{
+      return
+    }
+    if a.LastPrice_BTC == 0.0 || a.LastPrice_key == 0.0{
+      // BTC/JPYを取得済みデータのなかから探し、なければ後回し
+      if tick_btc, ok := arr.Search("BTC", a.ServiceName); !ok{
+        return
+      }else{
+        ltp_btckey := tick_btc.LastPrice_key
+        switch {
+        case a.LastPrice_BTC == 0.0 :
+          (arr[i]).LastPrice_BTC = (arr[i]).LastPrice_key * (1.0/ltp_btckey)
+          (arr[i]).Amount_BTC = (arr[i]).Amount * (arr[i]).LastPrice_BTC
+        case a.LastPrice_key == 0.0 :
+          (arr[i]).LastPrice_key = (arr[i]).LastPrice_BTC * ltp_btckey
+          (arr[i]).Amount_key = (arr[i]).Amount * (arr[i]).LastPrice_key
+        }
+      }
+    }
   }
+  return
+}
 
-  // キー通貨でもBTCでもなかったらTicker情報を取得
+func BalanceToTicker(b *ccyutils.Balance, key_currency_code string, available_pairs *ccyutils.AvailablePairs) (pt PersonalTick){
+  // decide currency_pair
+  var currency_pair string
+  var currency_opposite string
+  switch{
+  case available_pairs.Have(b.CurrencyCode+"_BTC", b.ServiceName):
+    currency_opposite = "_BTC"
+    currency_pair = b.CurrencyCode+currency_opposite
+  case available_pairs.Have("BTC_"+b.CurrencyCode, b.ServiceName):
+    currency_opposite = "BTC_"
+    currency_pair = currency_opposite+b.CurrencyCode
+  case available_pairs.Have(b.CurrencyCode+"_"+key_currency_code, b.ServiceName):
+    currency_opposite = "_"+key_currency_code
+    currency_pair = b.CurrencyCode+currency_opposite
+  default:
+    pt.ServiceName = b.ServiceName
+    pt.CurrencyCode = b.CurrencyCode
+    pt.Amount = b.Amount
+    pt.KeyCurrencyCode = key_currency_code
+    return
+  }
+  // get ticker
   var tick ccyutils.Tick
   var err error
   switch b.ServiceName{
   case "bitflyer":
     tick, _ = bf.Ticker(currency_pair)
-    pt.LastPrice_BTC = tick.LastPrice
-    pt.LastPrice_key = pt.LastPrice_BTC * key_ltp
   case "binance":
     tick, _ = bn.Ticker(currency_pair)
-    pt.LastPrice_BTC = tick.LastPrice
-    pt.LastPrice_key = pt.LastPrice_BTC * key_ltp
   case "bitbank":
-    tick, err = bb.Ticker(currency_pair) //bitbankだとXRP/BTCがないので取り急ぎbinanceのレートを使用
-    if err != nil {
-      tick, err = bb.Ticker(b.CurrencyCode+"_"+key_currency_code)
-      if err != nil{
-        log.Fatal(err)
-      }else{
-        pt.LastPrice_key = tick.LastPrice
-        pt.LastPrice_BTC = pt.LastPrice_key * 1.0/key_ltp
-      }
-    } else {
-      pt.LastPrice_BTC = tick.LastPrice
-      pt.LastPrice_key = pt.LastPrice_key * key_ltp
-    }
+    tick, _ = bb.Ticker(currency_pair)
   default:
-    err := errors.New(fmt.Sprintf("[Error]%v not found", b.ServiceName))
+    err = errors.New(fmt.Sprintf("[Error]%v not found", b.ServiceName))
     log.Fatal(err)
+  }
+  // data
+  switch currency_opposite{
+  case "_BTC":
+    pt.LastPrice_BTC = tick.LastPrice
+  case "BTC_":
+    pt.LastPrice_BTC = 1.0/tick.LastPrice
+  case "_"+key_currency_code:
+    pt.LastPrice_key = tick.LastPrice
+  }
+  switch b.CurrencyCode{
+  case "BTC":
+    pt.LastPrice_BTC = 1.0
+    pt.Spread = tick.Spread
+    pt.Volume = tick.Volume
+  case key_currency_code:
+    pt.LastPrice_key = 1.0
+    pt.Spread = 0.0
+    pt.Volume = 0.0
+  default:
+    pt.Spread = tick.Spread
+    pt.Volume = tick.Volume
   }
   pt.ServiceName = b.ServiceName
   pt.CurrencyCode = b.CurrencyCode
@@ -121,7 +227,5 @@ func BalanceToTicker(b ccyutils.Balance, key_ltp float64, key_currency_code stri
   pt.Amount_BTC = b.Amount*pt.LastPrice_BTC
   pt.Amount_key = b.Amount*pt.LastPrice_key
   pt.KeyCurrencyCode = key_currency_code
-  pt.Spread = tick.Spread
-  pt.Volume = tick.Volume
   return
 }

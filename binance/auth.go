@@ -11,18 +11,21 @@ import (
   "encoding/hex"
 )
 
-func AuthorizedRequest(method string, path string, params map[string]string, sign bool) (resp *http.Response, err error){
+func AuthorizedRequest(method string, path string, params interface{}, sign bool) (resp *http.Response, err error){
   // init
   base_url := "https://api.binance.com"
 
   // prepare params
   var totalParams string
   values := url.Values{}
-  if len(params)>0 {
-    for key, value := range params{
-      values.Add(key, value)
+  if params_cast, ok := params.(map[string]string); ok{
+    if len(params_cast)>0{
+      for key, value := range params_cast{
+        values.Add(key, value)
+      }
     }
   }
+
   if sign {
     timestamp := strconv.FormatInt(time.Now().UnixNano()/int64(1000000), 10)
     values.Add("timestamp", timestamp)

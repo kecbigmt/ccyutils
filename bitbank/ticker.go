@@ -1,8 +1,7 @@
 package bitbank
 
 import (
-  "log"
-  "errors"
+  "fmt"
   "strings"
   "strconv"
   "net/http"
@@ -53,21 +52,47 @@ func Ticker(currency_pair string) (tick ccyutils.Tick, err error){
   req, _ := http.NewRequest("GET", url, nil)
   client := new(http.Client)
   resp, err := client.Do(req)
-  defer resp.Body.Close()
   if err != nil{
+    err = fmt.Errorf(`{
+      "error_code":"100",
+      "component":"ticker",
+      "service":"bitbank",
+      "message":"[Error]Failed to request",
+      "detail":%v
+    }`, err)
     return
   }
-
-  bytes, err := ioutil.ReadAll(resp.Body)
-  if err != nil {
-      log.Fatal(err)
+  defer resp.Body.Close()
+  bytes, _ := ioutil.ReadAll(resp.Body)
+  if resp.StatusCode != 200{
+    err = fmt.Errorf(`{
+      "error_code":"101",
+      "component":"ticker",
+      "service":"bitbank",
+      "message":"[Error]HTTP Error(%v)",
+      "detail":%v
+    }`, resp.StatusCode, string(bytes))
+    return
   }
   var bbt BitBankTick
-  if err := json.Unmarshal(bytes, &bbt); err != nil {
-      log.Fatal(err)
+  if err = json.Unmarshal(bytes, &bbt); err != nil {
+    err = fmt.Errorf(`{
+      "error_code":"102",
+      "component":"ticker",
+      "service":"bitbank",
+      "message":"[Error]Failed to decode JSON",
+      "detail":%v
+    }`, err)
+    return
   }
   if bbt.Success == 0{
-    err = errors.New("[Error]API Error")
+    err = fmt.Errorf(`{
+      "error_code":"103",
+      "component":"ticker",
+      "service":"bitbank",
+      "message":"[Error]API Error",
+      "detail":%v
+    }`, err)
     return
   }
   tick = bbt.Norm(currency_pair)

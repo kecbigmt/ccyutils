@@ -16,7 +16,7 @@ import (
   "encoding/json"
 )
 
-func AuthorizedRequest(method string, path string, params map[string]string) (resp *http.Response, err error){
+func AuthorizedRequest(method string, path string, params interface{}) (resp *http.Response, err error){
   // init
   base_url := "https://api.bitflyer.jp"
   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
@@ -26,19 +26,23 @@ func AuthorizedRequest(method string, path string, params map[string]string) (re
   var content string
   switch method {
   case "GET":
-    if len(params)>0{
-      values := url.Values{}
-      for key, value := range params{
-        values.Add(key, value)
+    if params_cast, ok := params.(map[string]string); ok{
+      if len(params_cast)>0{
+        values := url.Values{}
+        for key, value := range params_cast{
+          values.Add(key, value)
+        }
+        path = path + "?" + values.Encode()
       }
-      path = path + "?" + values.Encode()
     }
     body  = nil
     content = timestamp + method + path
   case "POST":
-    jsonBytes, err := json.Marshal(params)
-    if err != nil {
-        log.Fatal(err)
+    var jsonBytes []byte
+    if params_cast, ok := params.(map[string]string); ok{
+      if len(params_cast)>0{
+        jsonBytes, _ = json.Marshal(params_cast)
+      }
     }
     body = strings.NewReader(string(jsonBytes))
     content = timestamp + method + path + string(jsonBytes)

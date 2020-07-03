@@ -1,6 +1,9 @@
 // common
 package ccyutils
-import "math"
+import (
+  "math"
+  "strings"
+)
 
 // Ticker
 type Tick struct {
@@ -49,6 +52,38 @@ func (barr1 BalanceArray) DropZero() (barr2 BalanceArray) {
     }
   }
   return
+}
+
+//Order info
+type OrderInfo struct{
+  OrderId string
+  CurrencyPair string
+  Side string
+  Type string
+  Status string
+  TotalSize float64
+  ExecutedSize float64
+  Price float64
+  AveragePrice float64
+}
+
+//AvailablePairs
+type AvailablePairs []string
+func (ms AvailablePairs) Have (currency_pair string, service string) bool{
+  switch service{
+  case "bitflyer":
+    currency_pair = strings.ToUpper(currency_pair)
+  case "bitbank":
+    currency_pair = strings.ToLower(currency_pair)
+  case "binance":
+    currency_pair = strings.ToUpper(strings.Replace(currency_pair, "_", "", -1))
+  }
+  for _, m := range ms {
+    if m == currency_pair {
+      return true
+    }
+  }
+  return false
 }
 
 // for calculate

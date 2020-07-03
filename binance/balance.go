@@ -2,8 +2,6 @@ package binance
 
 import (
   "fmt"
-  "log"
-  "errors"
   "strconv"
   "io/ioutil"
   "encoding/json"
@@ -44,24 +42,40 @@ func (bbarr BinanceBalanceArray) Norm() (barr ccyutils.BalanceArray) {
 }
 
 func Balance() (barr ccyutils.BalanceArray, err error) {
-  resp, err := AuthorizedRequest("GET", "/api/v3/account", map[string]string{}, true)
+  resp, err := AuthorizedRequest("GET", "/api/v3/account", nil, true)
+  if err != nil{
+    err = fmt.Errorf(`{
+      "error_code":"300",
+      "component":"balance",
+      "service":"binance",
+      "message":"[Error]Failed to request",
+      "detail":%v
+      }`, err)
+    return
+  }
   defer resp.Body.Close()
-  if err != nil {
-      return
-  }
-
-  bytes, err := ioutil.ReadAll(resp.Body)
-  if err != nil {
-      log.Fatal(err)
-  }
-  if resp.StatusCode != 200 {
-    err = errors.New(fmt.Sprintf("HTTP Error(%v): %v", resp.StatusCode, string(bytes)))
+  bytes, _ := ioutil.ReadAll(resp.Body)
+  if resp.StatusCode != 200{
+    err = fmt.Errorf(`{
+      "error_code":"301",
+      "component":"balance",
+      "service":"binance",
+      "message":"[Error]HTTP Error(%v)",
+      "detail":%v
+      }`, resp.StatusCode, string(bytes))
     return
   }
 
   var account BinanceAccount
-  if err := json.Unmarshal(bytes, &account); err != nil {
-      log.Fatal(err)
+  if err = json.Unmarshal(bytes, &account); err != nil {
+    err = fmt.Errorf(`{
+      "error_code":"302",
+      "component":"balance",
+      "service":"binance",
+      "message":"[Error]Failed to decode JSON",
+      "detail":%v
+      }`, err)
+    return
   }
   barr = account.Balances.Norm()
   return
